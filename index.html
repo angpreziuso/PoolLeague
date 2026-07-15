@@ -261,14 +261,25 @@
 
 </main>
 
-<footer>Rack Sheet — prototype UI, mock data. Scoring pipeline runs through Google Forms → Sheets → Apps Script.</footer>
+<footer>Rack Sheet — data entered in the Google Sheet, served live via Apps Script.</footer>
 
 <script>
-/* ========================= MOCK DATA ========================= */
+/* ========================= DATA ========================= */
+
+// Live data source: the deployed Google Apps Script Web App (/exec URL).
+const API_BASE = "https://script.google.com/macros/s/AKfycbyO1wHt8qftmQCsNF7Cw0LHvX_cUNMCU9bg5PHr6fx8GOj1hCUVptT5J_xG5pO85eBw3A/exec";
 
 const BALL_COLORS = ['#e8b33d','#4a7c9e','#b6473b','#7d5ba6','#c9642b','#3c7a61','#8a2e2e','#5a7a9e'];
 
-const players = [
+// Icons/colors for the auto-awarded badges that come from the Roster tab.
+const BADGE_META = {
+  'Sharpshooter': {icon:'🎯', color:'#4a7c9e'},
+  'Veteran':      {icon:'🏅', color:'#7d5ba6'},
+  'Hot Streak':   {icon:'🔥', color:'#c9642b'},
+};
+
+/* Sample data — shown only until live data loads (or if the API is unreachable). */
+const SAMPLE_PLAYERS = [
   {id:1, name:"Marcus Webb", number:14, rating:7, wins:22, losses:9, status:"active", team:"Corner Pocket Kings",
     history:[{opp:"D. Ruiz", result:"W", score:"6-3", date:"Jul 8"},{opp:"T. Nolan", result:"L", score:"4-6", date:"Jul 1"},{opp:"S. Ford", result:"W", score:"6-2", date:"Jun 24"}],
     badges:[{icon:"🎯",label:"Break & Run",color:"#4a7c9e"},{icon:"🔥",label:"5-Win Streak",color:"#c9642b"},{icon:"⛰️",label:"Hill-Hill Hero",color:"#7d5ba6"}]},
@@ -298,7 +309,7 @@ const players = [
     badges:[]},
 ];
 
-const teams = [
+const SAMPLE_TEAMS = [
   {id:"cpk", name:"Corner Pocket Kings", roster:[1,2,9], record:"11-4", points:245, captain:"Priya Anand",
     history:[{week:1,pts:22},{week:2,pts:19},{week:3,pts:24},{week:4,pts:21},{week:5,pts:23},{week:6,pts:20}]},
   {id:"rr", name:"Rail Riders", roster:[3,4,8], record:"9-6", points:221, captain:"Tessa Nolan",
@@ -307,14 +318,14 @@ const teams = [
     history:[{week:1,pts:16},{week:2,pts:18},{week:3,pts:20},{week:4,pts:15},{week:5,pts:17},{week:6,pts:19}]},
 ];
 
-const standings = [
+const SAMPLE_STANDINGS = [
   {team:"Corner Pocket Kings", w:11, l:4, pts:245},
   {team:"Rail Riders", w:9, l:6, pts:221},
   {team:"Two Rail Tavern", w:7, l:8, pts:198},
   {team:"Side Pocket Society", w:4, l:11, pts:162},
 ];
 
-const schedule = [
+const SAMPLE_SCHEDULE = [
   {week:5, date:"Jul 8", day:"Tue", away:"Rail Riders", home:"Corner Pocket Kings", loc:"Harbor Billiards", table:3},
   {week:5, date:"Jul 8", day:"Tue", away:"Two Rail Tavern", home:"Side Pocket Society", loc:"Chalk & Cue", table:1},
   {week:6, date:"Jul 15", day:"Tue", away:"Corner Pocket Kings", home:"Two Rail Tavern", loc:"Chalk & Cue", table:2},
@@ -322,6 +333,12 @@ const schedule = [
   {week:7, date:"Jul 22", day:"Tue", away:"Rail Riders", home:"Two Rail Tavern", loc:"Chalk & Cue", table:1},
   {week:7, date:"Jul 22", day:"Tue", away:"Corner Pocket Kings", home:"Side Pocket Society", loc:"Harbor Billiards", table:2},
 ];
+
+// These start as the sample data and are replaced with live data once it loads.
+let players = SAMPLE_PLAYERS;
+let teams = SAMPLE_TEAMS;
+let standings = SAMPLE_STANDINGS;
+let schedule = SAMPLE_SCHEDULE;
 
 /* ========================= HELPERS ========================= */
 
@@ -335,10 +352,10 @@ function ballBadge(num, size){
   </div>`;
 }
 
-function winRate(p){ return Math.round((p.wins/(p.wins+p.losses))*100); }
-
-function statusLabel(s){
-  return {active:"Available", inactive:"Sub", injured:"Out"}[s] || s;
+function winRate(p){
+  if(p.winRate!==undefined && p.winRate!==null && p.winRate!=="") return p.winRate;
+  const g=(Number(p.wins)||0)+(Number(p.losses)||0);
+  return g ? Math.round((Number(p.wins)/g)*100) : 0;
 }
 
 /* ========================= VIEW SWITCH ========================= */
@@ -365,7 +382,7 @@ function renderPlayers(filter=""){
         ${ballBadge(p.number)}
         <div>
           <div class="pc-name">${p.name}</div>
-          <div class="pc-meta"><span class="status-dot"></span>${statusLabel(p.status)} · ${p.team}</div>
+          <div class="pc-meta">${p.team || '—'}${p.streak ? ' · <span class="mono">'+p.streak+'</span>' : ''}</div>
         </div>
       </div>
       <div class="pc-stats">
@@ -386,8 +403,8 @@ function openPlayer(id){
       ${ballBadge(p.number, 78)}
       <div>
         <h2 class="display">${p.name}</h2>
-        <div class="pc-meta"><span class="status-dot"></span>${statusLabel(p.status)}</div>
-        <span class="team-tag">${p.team}</span>
+        ${p.streak ? '<div class="pc-meta mono">Streak '+p.streak+'</div>' : ''}
+        <span class="team-tag">${p.team || '—'}</span>
       </div>
     </div>
     <div class="stat-strip">
@@ -442,16 +459,17 @@ function selectTeam(id){
 }
 
 function renderTeamContent(){
-  const t = teams.find(x=>x.id===activeTeam);
-  const roster = t.roster.map(pid=>players.find(p=>p.id===pid));
-  const maxPts = Math.max(...t.history.map(h=>h.pts));
+  const t = teams.find(x=>x.id===activeTeam) || teams[0];
+  if(!t){ document.getElementById('teamContent').innerHTML = '<div class="panel" style="color:var(--chalk-faint)">No teams entered yet.</div>'; return; }
+  const roster = t.roster.map(pid=>players.find(p=>p.id===pid)).filter(Boolean);
+  const maxPts = t.history.length ? Math.max(...t.history.map(h=>h.pts)) : 0;
 
   document.getElementById('teamContent').innerHTML = `
     <div class="team-two-col">
       <div class="panel">
         <h2 class="section-title">ROSTER — ${t.name.toUpperCase()}</h2>
         <table class="roster-table">
-          <thead><tr><th>#</th><th>Player</th><th>Rating</th><th>Record</th><th>Status</th></tr></thead>
+          <thead><tr><th>#</th><th>Player</th><th>Rating</th><th>Record</th></tr></thead>
           <tbody>
             ${roster.map(p=>`
               <tr style="cursor:pointer" onclick="openPlayer(${p.id})">
@@ -459,7 +477,6 @@ function renderTeamContent(){
                 <td>${p.name}${p.name===t.captain?' <span class="mono" style="color:var(--ball-yellow); font-size:10px;">C</span>':''}</td>
                 <td class="mono">R${p.rating}</td>
                 <td class="mono">${p.wins}-${p.losses}</td>
-                <td><span class="status-dot status-${p.status==='active'?'active':(p.status==='injured'?'injured':'inactive')}" style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${p.status==='active'?'#5fbf87':(p.status==='injured'?'var(--ball-red)':'#8a8a8a')};"></span></td>
               </tr>
             `).join('')}
           </tbody>
@@ -471,18 +488,18 @@ function renderTeamContent(){
           <div class="stat-cell"><div class="num">${t.record}</div><div class="lbl">Match Record</div></div>
           <div class="stat-cell"><div class="num">${t.points}</div><div class="lbl">Total Points</div></div>
         </div>
-        <div style="margin-top:20px;">
+        ${t.history.length ? `<div style="margin-top:20px;">
           <div class="pc-meta" style="margin-bottom:6px;">WEEKLY PERFORMANCE</div>
           <div class="bars">
             ${t.history.map(h=>`
               <div class="bar-col">
                 <div class="bar-val">${h.pts}</div>
-                <div class="bar" style="height:${(h.pts/maxPts)*100}%;"></div>
+                <div class="bar" style="height:${maxPts?(h.pts/maxPts)*100:0}%;"></div>
                 <div class="bar-lbl">W${h.week}</div>
               </div>
             `).join('')}
           </div>
-        </div>
+        </div>` : ''}
       </div>
     </div>
     <div class="panel">
@@ -492,7 +509,7 @@ function renderTeamContent(){
         <tbody>
           ${standings.map((s,i)=>`
             <tr class="${s.team===t.name?'me':''}">
-              <td class="rank-num">${i+1}</td>
+              <td class="rank-num">${s.rank||i+1}</td>
               <td>${s.team}</td>
               <td class="mono">${s.w}</td>
               <td class="mono">${s.l}</td>
@@ -527,7 +544,7 @@ function renderSchedule(){
       <td class="mono">${s.week}</td>
       <td class="mono">${s.date}</td>
       <td>${s.day}</td>
-      <td class="vs-cell">${s.away} <span style="color:var(--chalk-faint)">@</span> ${s.home} <span class="home-tag">HOME</span></td>
+      <td class="vs-cell">${s.away} <span style="color:var(--chalk-faint)">@</span> ${s.home} <span class="home-tag">HOME</span>${s.result ? ' <span class="mono" style="color:var(--chalk-dim); margin-left:8px;">'+s.result+'</span>' : ''}</td>
       <td class="loc-tag">${s.loc}</td>
       <td><span class="table-num">${s.table}</span></td>
     </tr>
@@ -536,13 +553,118 @@ function renderSchedule(){
 document.getElementById('weekFilter').addEventListener('change', renderSchedule);
 document.getElementById('teamFilter').addEventListener('change', renderSchedule);
 
+/* ========================= LIVE DATA (Google Sheet via Apps Script) ========================= */
+
+function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'team'; }
+function num(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
+function fmtDate(v){
+  if(!v) return '';
+  const d = new Date(v);
+  return isNaN(d) ? String(v) : d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+async function fetchResource(r){
+  const res = await fetch(API_BASE + '?resource=' + r, {redirect:'follow'});
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+function parseBadges(str){
+  return String(str||'').split(/\s{2,}/).map(s=>s.trim()).filter(Boolean).map(label=>{
+    const meta = BADGE_META[label] || {icon:'🏆', color:'#7d5ba6'};
+    return {label, icon:meta.icon, color:meta.color};
+  });
+}
+
+function normalize(raw){
+  const rosterRows = raw.players.filter(r=>String(r.PlayerName||'').trim());
+  const nameToId = {};
+  const livePlayers = rosterRows.map((r,i)=>{
+    const id = i+1;
+    nameToId[r.PlayerName] = id;
+    return {
+      id, name:r.PlayerName, number:num(r.PlayerNumber)||id, rating:(r.CurrentRating===''||r.CurrentRating==null)?'-':r.CurrentRating,
+      wins:num(r.Wins), losses:num(r.Losses), team:r.Team||'', winRate:(r.WinRate===''||r.WinRate==null)?null:num(r.WinRate),
+      streak:(r.Streak && r.Streak!=='-')?r.Streak:'', history:[], badges:parseBadges(r.Badges)
+    };
+  });
+  const byId = {}; livePlayers.forEach(p=>byId[p.id]=p);
+
+  // Per-player recent games (most recent first).
+  raw.games.filter(g=>String(g.HomePlayer||'').trim() || String(g.AwayPlayer||'').trim()).forEach(g=>{
+    [[g.HomePlayer, g.AwayPlayer],[g.AwayPlayer, g.HomePlayer]].forEach(([me, opp])=>{
+      const id = nameToId[me]; if(!id) return;
+      byId[id].history.unshift({
+        opp: opp || '—',
+        result: g.Winner===me ? 'W' : 'L',
+        score: g.WinType || '',
+        date: fmtDate(g.Date) || (g.Week?('Wk '+g.Week):'')
+      });
+    });
+  });
+  livePlayers.forEach(p=>{ p.history = p.history.slice(0,6); });
+
+  // Teams, with weekly points pulled from the Matches tab.
+  const teamRows = raw.teams.filter(r=>String(r.TeamName||'').trim());
+  const liveTeams = teamRows.map(r=>{
+    const name = r.TeamName;
+    const history = raw.matches
+      .filter(m=>m.HomeTeam===name || m.AwayTeam===name)
+      .map(m=>({week:num(m.Week), pts:num(m.HomeTeam===name ? m.TeamPointsHome : m.TeamPointsAway)}))
+      .sort((a,b)=>a.week-b.week);
+    return {
+      id:slug(name), name, captain:r.Captain||'',
+      points:num(r.TotalPoints), record:`${num(r.Wins)}-${num(r.Losses)}`,
+      roster:livePlayers.filter(p=>p.team===name).map(p=>p.id),
+      history
+    };
+  });
+
+  const liveStandings = raw.standings.filter(r=>String(r.TeamName||'').trim()).map(r=>({
+    team:r.TeamName, w:num(r.Wins), l:num(r.Losses), pts:num(r.TotalPoints), rank:num(r.Rank)||null
+  }));
+
+  const liveSchedule = raw.schedule.filter(r=>String(r.HomeTeam||'').trim() || String(r.AwayTeam||'').trim()).map(r=>({
+    week:r.Week, date:fmtDate(r.Date)||r.Date||'', day:r.Day||'', away:r.AwayTeam||'', home:r.HomeTeam||'',
+    loc:r.Location||'', table:r.TableNumber||'', result:(r.Result && r.Result!=='Not played')?r.Result:''
+  }));
+
+  return {livePlayers, liveTeams, liveStandings, liveSchedule};
+}
+
+function renderAll(){
+  renderPlayers();
+  renderTeamChips();
+  renderTeamContent();
+  renderScheduleFilters();
+  renderSchedule();
+}
+
+async function loadData(){
+  try {
+    const [p, t, s, sch, g, m] = await Promise.all([
+      fetchResource('players'), fetchResource('teams'), fetchResource('standings'),
+      fetchResource('schedule'), fetchResource('games'), fetchResource('matches')
+    ]);
+    const {livePlayers, liveTeams, liveStandings, liveSchedule} =
+      normalize({players:p, teams:t, standings:s, schedule:sch, games:g, matches:m});
+    if(livePlayers.length){
+      players = livePlayers;
+      teams = liveTeams.length ? liveTeams : [];
+      standings = liveStandings;
+      schedule = liveSchedule;
+      activeTeam = teams.length ? teams[0].id : null;
+      renderAll();
+    }
+  } catch(err){
+    console.warn('Live data unavailable, showing sample data.', err);
+  }
+}
+
 /* ========================= INIT ========================= */
 
-renderPlayers();
-renderTeamChips();
-renderTeamContent();
-renderScheduleFilters();
-renderSchedule();
+renderAll();
+loadData();
 </script>
 </body>
 </html>
