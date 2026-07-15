@@ -70,7 +70,7 @@ const SHEETS = {
 // ONE-TIME SETUP
 // ---------------------------------------------------------------------------
 function setupSheets() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc');
 
   ensureSheet_(ss, SHEETS.ROSTER,
     ['PlayerName', 'PlayerNumber', 'Team', 'CurrentRating', 'Wins', 'Losses']);
@@ -201,7 +201,7 @@ function onFormSubmitInstalled(e) {
   const awayTeam = get('Away Team');
   const comments = get('Comments');
 
-  const gamesSheet = SpreadsheetApp.getActive().getSheetByName(SHEETS.GAMES);
+  const gamesSheet = SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(SHEETS.GAMES);
   let homeGamesWon = 0, awayGamesWon = 0;
 
   for (let g = 1; g <= MAX_GAMES; g++) {
@@ -236,7 +236,7 @@ function onFormSubmitInstalled(e) {
     ]);
 
     if (ratingResult.needsReview) {
-      SpreadsheetApp.getActive().getSheetByName(SHEETS.ADMIN_ALERTS).appendRow([
+      SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(SHEETS.ADMIN_ALERTS).appendRow([
         matchId, g, gameWinner, winType, new Date(), false, ''
       ]);
     }
@@ -247,7 +247,7 @@ function onFormSubmitInstalled(e) {
   const teamPointsHome = Math.round((homeGamesWon / (homeGamesWon + awayGamesWon || 1)) * 25);
   const teamPointsAway = 25 - teamPointsHome;
 
-  SpreadsheetApp.getActive().getSheetByName(SHEETS.MATCHES).appendRow([
+  SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(SHEETS.MATCHES).appendRow([
     matchId, new Date(), '', homeTeam, awayTeam, homeGamesWon, awayGamesWon,
     teamPointsHome, teamPointsAway, scorekeeper, comments, false // Approved = false until admin checks it
   ]);
@@ -312,8 +312,8 @@ function handleApprovalEdit_(e) {
 }
 
 function finalizeMatch_(matchId) {
-  const gamesSheet = SpreadsheetApp.getActive().getSheetByName(SHEETS.GAMES);
-  const rosterSheet = SpreadsheetApp.getActive().getSheetByName(SHEETS.ROSTER);
+  const gamesSheet = SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(SHEETS.GAMES);
+  const rosterSheet = SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(SHEETS.ROSTER);
   const rows = readSheet_(SHEETS.GAMES).filter(r => r.MatchId === matchId);
   const rosterRows = readSheet_(SHEETS.ROSTER);
   const rosterHeaders = rosterSheet.getRange(1, 1, 1, rosterSheet.getLastColumn()).getValues()[0];
@@ -330,7 +330,7 @@ function finalizeMatch_(matchId) {
         const oldRating = Number(rosterSheet.getRange(sheetRow, ratingCol + 1).getValue());
         const newRating = round1_(oldRating + delta);
         rosterSheet.getRange(sheetRow, ratingCol + 1).setValue(newRating);
-        SpreadsheetApp.getActive().getSheetByName(SHEETS.RATING_LOG).appendRow([
+        SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(SHEETS.RATING_LOG).appendRow([
           new Date(), g.GameWinner, matchId, g.GameNumber, oldRating, delta, newRating, g.WinType
         ]);
       }
@@ -341,7 +341,7 @@ function finalizeMatch_(matchId) {
 }
 
 function recalculateStandings_() {
-  const teamsSheet = SpreadsheetApp.getActive().getSheetByName(SHEETS.TEAMS);
+  const teamsSheet = SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(SHEETS.TEAMS);
   const matches = readSheet_(SHEETS.MATCHES).filter(m => m.Approved === true || m.Approved === 'TRUE');
   const teamRows = readSheet_(SHEETS.TEAMS);
   const totals = {};
@@ -361,7 +361,7 @@ function recalculateStandings_() {
 // GENERIC SHEET READER — returns array of objects keyed by header row
 // ---------------------------------------------------------------------------
 function readSheet_(name) {
-  const sheet = SpreadsheetApp.getActive().getSheetByName(name);
+  const sheet = SpreadsheetApp.openById('1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc').getSheetByName(name);
   if (!sheet || sheet.getLastRow() < 2) return [];
   const values = sheet.getDataRange().getValues();
   const headers = values.shift();
