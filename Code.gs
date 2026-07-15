@@ -30,6 +30,7 @@ const SHEETS = {
   TEAMS: 'Teams',
   SCHEDULE: 'Schedule',
   MATCHES: 'Matches',
+  GAMES: 'Games',
 };
 
 // ---------------------------------------------------------------------------
@@ -51,7 +52,12 @@ function setupSheets() {
     ['Week', 'Date', 'HomeTeam', 'AwayTeam', 'GamesHome', 'GamesAway',
      'TeamPointsHome', 'TeamPointsAway', 'Comments']);
 
-  notify_('Sheet tabs are set up. Fill in Roster, Teams, Schedule, and Matches.');
+  // One row per individual game (rack): player vs player. Fill this in for
+  // per-player stats like head-to-head records and win rates.
+  ensureSheet_(ss, SHEETS.GAMES,
+    ['Week', 'Date', 'HomePlayer', 'AwayPlayer', 'Winner', 'WinType']);
+
+  notify_('Sheet tabs are set up. Fill in Roster, Teams, Schedule, Matches, and Games.');
 }
 
 // Shows a pop-up when the script is bound to a sheet; falls back to the
@@ -97,6 +103,7 @@ function readSheet_(name) {
 //   {url}?resource=schedule
 //   {url}?resource=standings
 //   {url}?resource=matches
+//   {url}?resource=games
 // ---------------------------------------------------------------------------
 function doGet(e) {
   const resource = (e.parameter.resource || '').toLowerCase();
@@ -118,8 +125,11 @@ function doGet(e) {
     case 'matches':
       data = readSheet_(SHEETS.MATCHES);
       break;
+    case 'games':
+      data = readSheet_(SHEETS.GAMES);
+      break;
     default:
-      return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown resource. Use players, teams, schedule, standings, or matches.' }))
+      return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown resource. Use players, teams, schedule, standings, matches, or games.' }))
         .setMimeType(ContentService.MimeType.JSON);
   }
 
