@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rack Sheet — League Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #142019;
+    --bg-panel: #1b2c23;
+    --bg-panel-raised: #223a2d;
+    --felt: #2d5f4c;
+    --felt-light: #3c7a61;
+    --chalk: #f2efe9;
+    --chalk-dim: #a9b8ae;
+    --chalk-faint: #74857a;
+    --ball-yellow: #e8b33d;
+    --ball-orange: #c9642b;
+    --ball-blue: #4a7c9e;
+    --ball-red: #b6473b;
+    --ball-purple: #7d5ba6;
+    --rail: #6b4a2c;
+    --rail-light: #8a6238;
+    --line: rgba(242,239,233,0.09);
+    --radius: 3px;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 1200px 600px at 50% -10%, rgba(60,122,97,0.18), transparent 60%),
+      var(--bg);
+    color: var(--chalk);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.03em;}
+
+  /* ---------- Header ---------- */
+  header{
+    border-bottom:1px solid var(--rail);
+    background: linear-gradient(180deg, rgba(0,0,0,0.25), transparent);
+    padding: 22px 32px 0 32px;
+  }
+  .header-top{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:12px;}
+  .brand{display:flex; align-items:center; gap:14px;}
+  .brand-mark{
+    width:42px; height:42px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, #fff8, transparent 40%), var(--ball-yellow);
+    display:flex; align-items:center; justify-content:center;
+    color:#2a1d05; font-family:'Oswald',sans-serif; font-weight:700; font-size:19px;
+    box-shadow: inset 0 -3px 6px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.4);
+    flex-shrink:0;
+  }
+  .brand h1{font-size:26px; letter-spacing:0.06em;}
+  .brand .sub{font-size:11.5px; color:var(--chalk-faint); letter-spacing:0.14em; margin-top:2px;}
+  .season-pill{
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--chalk-dim);
+    border:1px solid var(--line); border-radius:20px; padding:6px 14px;
+  }
+  nav{display:flex; gap:4px; margin-top:22px;}
+  nav button{
+    background:none; border:none; color:var(--chalk-dim); font-family:'Oswald',sans-serif;
+    text-transform:uppercase; letter-spacing:0.08em; font-size:14px; padding:12px 20px;
+    cursor:pointer; border-bottom:3px solid transparent; transition: color .15s, border-color .15s;
+  }
+  nav button:hover{color:var(--chalk);}
+  nav button.active{color:var(--ball-yellow); border-bottom-color:var(--ball-yellow);}
+
+  main{max-width:1180px; margin:0 auto; padding:32px;}
+  .view{display:none; animation: fade .25s ease;}
+  .view.active{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  h2.section-title{font-size:13px; color:var(--chalk-faint); letter-spacing:0.16em; margin-bottom:14px; display:flex; align-items:center; gap:10px;}
+  h2.section-title::after{content:""; flex:1; height:1px; background:var(--line);}
+
+  /* ---------- Cards / panels ---------- */
+  .panel{
+    background: var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding:20px;
+  }
+
+  /* ---------- Players grid ---------- */
+  .players-toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; gap:12px; flex-wrap:wrap;}
+  .search-box{
+    background:var(--bg-panel); border:1px solid var(--line); border-radius:20px;
+    padding:8px 16px; color:var(--chalk); font-family:'Inter',sans-serif; font-size:13px; width:240px;
+  }
+  .search-box:focus{outline:1px solid var(--felt-light);}
+  .players-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:16px;}
+  .player-card{
+    background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; cursor:pointer; transition: border-color .15s, transform .15s;
+    position:relative; overflow:hidden;
+  }
+  .player-card:hover{border-color:var(--felt-light); transform:translateY(-2px);}
+  .player-card:focus-visible{outline:2px solid var(--ball-yellow); outline-offset:2px;}
+  .pc-top{display:flex; gap:14px; align-items:center;}
+  .ball-badge{
+    width:52px; height:52px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:17px; color:#fff;
+    position:relative; box-shadow: inset 0 -4px 8px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.35);
+  }
+  .ball-badge .stripe{
+    position:absolute; inset:0; border-radius:50%;
+    background: radial-gradient(circle at 50% 50%, transparent 34%, #fff 34%, #fff 66%, transparent 66%);
+    opacity:0.9;
+  }
+  .ball-badge .dot{position:absolute; top:6px; left:14px; width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,0.55);}
+  .pc-name{font-family:'Oswald',sans-serif; font-size:17px; letter-spacing:0.02em;}
+  .pc-meta{font-size:12px; color:var(--chalk-faint); margin-top:2px;}
+  .status-dot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:5px;}
+  .status-active .status-dot{background:#5fbf87;}
+  .status-inactive .status-dot{background:#8a8a8a;}
+  .status-injured .status-dot{background:var(--ball-red);}
+  .pc-stats{display:flex; gap:18px; margin-top:14px; padding-top:14px; border-top:1px solid var(--line);}
+  .pc-stat .num{font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700;}
+  .pc-stat .lbl{font-size:10px; color:var(--chalk-faint); letter-spacing:0.08em; text-transform:uppercase; margin-top:2px;}
+  .pc-badges{display:flex; gap:6px; margin-top:14px;}
+  .mini-badge{width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px;}
+
+  /* ---------- Player detail ---------- */
+  .detail-back{background:none; border:none; color:var(--ball-yellow); font-family:'Oswald',sans-serif; letter-spacing:0.05em; cursor:pointer; font-size:13px; margin-bottom:18px; display:flex; align-items:center; gap:6px;}
+  .detail-header{display:flex; gap:22px; align-items:center; margin-bottom:26px; flex-wrap:wrap;}
+  .detail-header .ball-badge{width:78px; height:78px; font-size:26px;}
+  .detail-header h2{font-family:'Oswald',sans-serif; font-size:30px; border:none; letter-spacing:0.02em;}
+  .team-tag{
+    display:inline-block; font-size:11px; padding:4px 10px; border-radius:14px; margin-top:8px;
+    background: rgba(74,124,158,0.18); border:1px solid rgba(74,124,158,0.4); color:var(--ball-blue);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .stat-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:26px;}
+  .stat-cell{background:var(--bg-panel); padding:16px; text-align:center;}
+  .stat-cell .num{font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:700; color:var(--ball-yellow);}
+  .stat-cell .lbl{font-size:10.5px; color:var(--chalk-faint); letter-spacing:0.1em; text-transform:uppercase; margin-top:4px;}
+
+  .detail-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:20px;}
+  @media(max-width:820px){.detail-grid{grid-template-columns:1fr;}}
+  .history-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .history-row:last-child{border-bottom:none;}
+  .history-row .opp{color:var(--chalk-dim);}
+  .result-w{color:#5fbf87; font-family:'JetBrains Mono',monospace; font-weight:700;}
+  .result-l{color:var(--ball-red); font-family:'JetBrains Mono',monospace; font-weight:700;}
+
+  .badges-wrap{display:grid; grid-template-columns:repeat(auto-fill, minmax(84px,1fr)); gap:14px; margin-top:6px;}
+  .badge-item{display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;}
+  .badge-circle{
+    width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:22px; box-shadow: inset 0 2px 4px rgba(255,255,255,0.15), inset 0 -4px 8px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.4);
+    border:2px solid rgba(255,255,255,0.08);
+  }
+  .badge-label{font-size:10.5px; color:var(--chalk-dim); line-height:1.2;}
+
+  /* ---------- Teams ---------- */
+  .team-select-row{display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;}
+  .team-chip{
+    background:var(--bg-panel); border:1px solid var(--line); color:var(--chalk-dim);
+    padding:8px 16px; border-radius:20px; font-family:'Oswald',sans-serif; letter-spacing:0.04em;
+    font-size:13px; cursor:pointer;
+  }
+  .team-chip.active{border-color:var(--ball-yellow); color:var(--ball-yellow);}
+  .roster-table, .standings-table, .schedule-table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  .roster-table th, .standings-table th, .schedule-table th{
+    text-align:left; color:var(--chalk-faint); font-weight:600; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.08em; padding:10px 12px; border-bottom:1px solid var(--rail);
+  }
+  .roster-table td, .standings-table td, .schedule-table td{padding:11px 12px; border-bottom:1px solid var(--line);}
+  .roster-table tr:hover td, .schedule-table tr:hover td{background:rgba(255,255,255,0.02);}
+  .standings-table tr.me td{background:rgba(232,179,61,0.07);}
+  .rank-num{font-family:'JetBrains Mono',monospace; color:var(--chalk-faint);}
+  .team-two-col{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;}
+  @media(max-width:820px){.team-two-col{grid-template-columns:1fr;}}
+
+  .bars{display:flex; align-items:flex-end; gap:10px; height:140px; padding-top:10px;}
+  .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+  .bar{width:100%; max-width:34px; border-radius:3px 3px 0 0; background:linear-gradient(180deg, var(--felt-light), var(--felt));}
+  .bar-val{font-size:10px; font-family:'JetBrains Mono',monospace; color:var(--chalk-dim); margin-bottom:4px;}
+  .bar-lbl{font-size:10px; color:var(--chalk-faint); margin-top:6px;}
+
+  /* ---------- Schedule ---------- */
+  .schedule-filters{display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; align-items:center;}
+  select.filter{background:var(--bg-panel); color:var(--chalk); border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:13px;}
+  .loc-tag{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--chalk-dim);}
+  .table-num{
+    display:inline-flex; width:22px; height:22px; border-radius:4px; background:var(--rail); color:var(--chalk);
+    align-items:center; justify-content:center; font-size:11px; font-family:'JetBrains Mono',monospace;
+  }
+  .vs-cell{display:flex; align-items:center; gap:8px;}
+  .home-tag{font-size:9.5px; letter-spacing:0.06em; color:var(--ball-yellow); border:1px solid rgba(232,179,61,0.4); border-radius:3px; padding:1px 5px;}
+
+  footer{max-width:1180px; margin:40px auto 0; padding:0 32px; color:var(--chalk-faint); font-size:11.5px; text-align:center;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-mark">9</div>
+      <div>
+        <h1 class="display">Rack Sheet</h1>
+        <div class="sub">HARBOR CITY 9-BALL LEAGUE</div>
+      </div>
+    </div>
+    <div class="season-pill">SUMMER SESSION · WEEK 6 OF 16</div>
+  </div>
+  <nav>
+    <button class="active" data-view="players">Players</button>
+    <button data-view="teams">Teams</button>
+    <button data-view="schedule">Schedule</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ============ PLAYERS LIST ============ -->
+  <section id="view-players" class="view active">
+    <div class="players-toolbar">
+      <h2 class="section-title" style="border:none; margin:0; flex:none;">ALL PLAYERS</h2>
+      <input class="search-box" placeholder="Search players…" id="playerSearch">
+    </div>
+    <div class="players-grid" id="playersGrid"></div>
+  </section>
+
+  <!-- ============ PLAYER DETAIL ============ -->
+  <section id="view-player-detail" class="view">
+    <button class="detail-back" onclick="showView('players')">&larr; All players</button>
+    <div id="playerDetailContent"></div>
+  </section>
+
+  <!-- ============ TEAMS ============ -->
+  <section id="view-teams" class="view">
+    <div class="team-select-row" id="teamChips"></div>
+    <div id="teamContent"></div>
+  </section>
+
+  <!-- ============ SCHEDULE ============ -->
+  <section id="view-schedule" class="view">
+    <h2 class="section-title">MATCH SCHEDULE</h2>
+    <div class="schedule-filters">
+      <select class="filter" id="weekFilter"><option value="">All weeks</option></select>
+      <select class="filter" id="teamFilter"><option value="">All teams</option></select>
+    </div>
+    <div class="panel">
+      <table class="schedule-table">
+        <thead><tr>
+          <th>Wk</th><th>Date</th><th>Day</th><th>Match</th><th>Location</th><th>Table</th>
+        </tr></thead>
+        <tbody id="scheduleBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>Rack Sheet — prototype UI, mock data. Scoring pipeline runs through Google Forms → Sheets → Apps Script.</footer>
+
+<script>
+/* ========================= MOCK DATA ========================= */
+
+const BALL_COLORS = ['#e8b33d','#4a7c9e','#b6473b','#7d5ba6','#c9642b','#3c7a61','#8a2e2e','#5a7a9e'];
+
+const players = [
+  {id:1, name:"Marcus Webb", number:14, rating:7, wins:22, losses:9, status:"active", team:"Corner Pocket Kings",
+    history:[{opp:"D. Ruiz", result:"W", score:"6-3", date:"Jul 8"},{opp:"T. Nolan", result:"L", score:"4-6", date:"Jul 1"},{opp:"S. Ford", result:"W", score:"6-2", date:"Jun 24"}],
+    badges:[{icon:"🎯",label:"Break & Run",color:"#4a7c9e"},{icon:"🔥",label:"5-Win Streak",color:"#c9642b"},{icon:"⛰️",label:"Hill-Hill Hero",color:"#7d5ba6"}]},
+  {id:2, name:"Priya Anand", number:7, rating:9, wins:31, losses:6, status:"active", team:"Corner Pocket Kings",
+    history:[{opp:"M. Webb", result:"W", score:"6-1", date:"Jul 8"},{opp:"J. Kim", result:"W", score:"6-4", date:"Jul 1"},{opp:"R. Diaz", result:"W", score:"6-0", date:"Jun 24"}],
+    badges:[{icon:"🏆",label:"Season Sweep",color:"#e8b33d"},{icon:"🎯",label:"Break & Run",color:"#4a7c9e"},{icon:"⚡",label:"Golden Break",color:"#e8b33d"},{icon:"🧊",label:"Ice in Vein",color:"#4a7c9e"}]},
+  {id:3, name:"Deshawn Ruiz", number:3, rating:4, wins:11, losses:17, status:"active", team:"Rail Riders",
+    history:[{opp:"M. Webb", result:"L", score:"3-6", date:"Jul 8"},{opp:"P. Anand", result:"L", score:"2-6", date:"Jun 30"},{opp:"L. Chen", result:"W", score:"6-5", date:"Jun 23"}],
+    badges:[{icon:"⛰️",label:"Hill-Hill Hero",color:"#7d5ba6"}]},
+  {id:4, name:"Tessa Nolan", number:22, rating:6, wins:18, losses:14, status:"active", team:"Rail Riders",
+    history:[{opp:"M. Webb", result:"W", score:"6-4", date:"Jul 1"},{opp:"S. Ford", result:"L", score:"3-6", date:"Jun 24"},{opp:"J. Kim", result:"W", score:"6-2", date:"Jun 17"}],
+    badges:[{icon:"🔥",label:"5-Win Streak",color:"#c9642b"}]},
+  {id5:5, id:5, name:"Sam Ford", number:19, rating:5, wins:14, losses:16, status:"injured", team:"Two Rail Tavern",
+    history:[{opp:"M. Webb", result:"L", score:"2-6", date:"Jun 24"},{opp:"T. Nolan", result:"W", score:"6-3", date:"Jun 17"},{opp:"D. Ruiz", result:"W", score:"6-1", date:"Jun 10"}],
+    badges:[]},
+  {id:6, name:"Jae Kim", number:11, rating:8, wins:26, losses:8, status:"active", team:"Two Rail Tavern",
+    history:[{opp:"P. Anand", result:"L", score:"4-6", date:"Jul 1"},{opp:"T. Nolan", result:"L", score:"2-6", date:"Jun 17"},{opp:"R. Diaz", result:"W", score:"6-3", date:"Jun 10"}],
+    badges:[{icon:"🎯",label:"Break & Run",color:"#4a7c9e"},{icon:"🧊",label:"Ice in Vein",color:"#4a7c9e"}]},
+  {id:7, name:"Rosa Diaz", number:2, rating:3, wins:8, losses:19, status:"active", team:"Two Rail Tavern",
+    history:[{opp:"P. Anand", result:"L", score:"0-6", date:"Jun 24"},{opp:"J. Kim", result:"L", score:"3-6", date:"Jun 10"},{opp:"L. Chen", result:"L", score:"2-6", date:"Jun 3"}],
+    badges:[]},
+  {id:8, name:"Liu Chen", number:16, rating:6, wins:19, losses:13, status:"active", team:"Rail Riders",
+    history:[{opp:"D. Ruiz", result:"L", score:"5-6", date:"Jun 23"},{opp:"R. Diaz", result:"W", score:"6-2", date:"Jun 3"},{opp:"S. Ford", result:"W", score:"6-4", date:"May 27"}],
+    badges:[{icon:"⛰️",label:"Hill-Hill Hero",color:"#7d5ba6"},{icon:"🔥",label:"5-Win Streak",color:"#c9642b"}]},
+  {id:9, name:"Owen Park", number:5, rating:5, wins:13, losses:15, status:"inactive", team:"Corner Pocket Kings",
+    history:[{opp:"L. Chen", result:"L", score:"3-6", date:"May 20"},{opp:"J. Kim", result:"L", score:"2-6", date:"May 13"}],
+    badges:[]},
+];
+
+const teams = [
+  {id:"cpk", name:"Corner Pocket Kings", roster:[1,2,9], record:"11-4", points:245, captain:"Priya Anand",
+    history:[{week:1,pts:22},{week:2,pts:19},{week:3,pts:24},{week:4,pts:21},{week:5,pts:23},{week:6,pts:20}]},
+  {id:"rr", name:"Rail Riders", roster:[3,4,8], record:"9-6", points:221, captain:"Tessa Nolan",
+    history:[{week:1,pts:18},{week:2,pts:20},{week:3,pts:17},{week:4,pts:22},{week:5,pts:19},{week:6,pts:21}]},
+  {id:"2rt", name:"Two Rail Tavern", roster:[5,6,7], record:"7-8", points:198, captain:"Jae Kim",
+    history:[{week:1,pts:16},{week:2,pts:18},{week:3,pts:20},{week:4,pts:15},{week:5,pts:17},{week:6,pts:19}]},
+];
+
+const standings = [
+  {team:"Corner Pocket Kings", w:11, l:4, pts:245},
+  {team:"Rail Riders", w:9, l:6, pts:221},
+  {team:"Two Rail Tavern", w:7, l:8, pts:198},
+  {team:"Side Pocket Society", w:4, l:11, pts:162},
+];
+
+const schedule = [
+  {week:5, date:"Jul 8", day:"Tue", away:"Rail Riders", home:"Corner Pocket Kings", loc:"Harbor Billiards", table:3},
+  {week:5, date:"Jul 8", day:"Tue", away:"Two Rail Tavern", home:"Side Pocket Society", loc:"Chalk & Cue", table:1},
+  {week:6, date:"Jul 15", day:"Tue", away:"Corner Pocket Kings", home:"Two Rail Tavern", loc:"Chalk & Cue", table:2},
+  {week:6, date:"Jul 15", day:"Tue", away:"Side Pocket Society", home:"Rail Riders", loc:"Harbor Billiards", table:4},
+  {week:7, date:"Jul 22", day:"Tue", away:"Rail Riders", home:"Two Rail Tavern", loc:"Chalk & Cue", table:1},
+  {week:7, date:"Jul 22", day:"Tue", away:"Corner Pocket Kings", home:"Side Pocket Society", loc:"Harbor Billiards", table:2},
+];
+
+/* ========================= HELPERS ========================= */
+
+function ballBadge(num, size){
+  const color = BALL_COLORS[num % BALL_COLORS.length];
+  const stripe = num % 3 === 0;
+  return `<div class="ball-badge" style="background:${color}; ${size?`width:${size}px;height:${size}px;font-size:${size*0.32}px;`:''}">
+    ${stripe ? '<div class="stripe"></div>' : ''}
+    <div class="dot"></div>
+    <span style="position:relative;">${num}</span>
+  </div>`;
+}
+
+function winRate(p){ return Math.round((p.wins/(p.wins+p.losses))*100); }
+
+function statusLabel(s){
+  return {active:"Active", inactive:"Inactive", injured:"Injured"}[s] || s;
+}
+
+/* ========================= VIEW SWITCH ========================= */
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+}
+document.querySelectorAll('nav button').forEach(b=>{
+  b.addEventListener('click', ()=>showView(b.dataset.view));
+});
+
+/* ========================= PLAYERS ========================= */
+
+function renderPlayers(filter=""){
+  const grid = document.getElementById('playersGrid');
+  const f = filter.toLowerCase();
+  grid.innerHTML = players
+    .filter(p=>p.name.toLowerCase().includes(f) || p.team.toLowerCase().includes(f))
+    .map(p=>`
+    <div class="player-card status-${p.status}" tabindex="0" onclick="openPlayer(${p.id})">
+      <div class="pc-top">
+        ${ballBadge(p.number)}
+        <div>
+          <div class="pc-name">${p.name}</div>
+          <div class="pc-meta"><span class="status-dot"></span>${statusLabel(p.status)} · ${p.team}</div>
+        </div>
+      </div>
+      <div class="pc-stats">
+        <div class="pc-stat"><div class="num mono">R${p.rating}</div><div class="lbl">Rating</div></div>
+        <div class="pc-stat"><div class="num mono">${winRate(p)}%</div><div class="lbl">Win Rate</div></div>
+        <div class="pc-stat"><div class="num mono">${p.wins}-${p.losses}</div><div class="lbl">Record</div></div>
+      </div>
+      ${p.badges.length ? `<div class="pc-badges">${p.badges.slice(0,4).map(b=>`<div class="mini-badge" style="background:${b.color}22; border:1px solid ${b.color}66;">${b.icon}</div>`).join('')}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function openPlayer(id){
+  const p = players.find(x=>x.id===id);
+  const content = document.getElementById('playerDetailContent');
+  content.innerHTML = `
+    <div class="detail-header">
+      ${ballBadge(p.number, 78)}
+      <div>
+        <h2 class="display">${p.name}</h2>
+        <div class="pc-meta"><span class="status-dot"></span>${statusLabel(p.status)}</div>
+        <span class="team-tag">${p.team}</span>
+      </div>
+    </div>
+    <div class="stat-strip">
+      <div class="stat-cell"><div class="num">R${p.rating}</div><div class="lbl">Current Rating</div></div>
+      <div class="stat-cell"><div class="num">${winRate(p)}%</div><div class="lbl">Win Rate</div></div>
+      <div class="stat-cell"><div class="num">${p.wins}</div><div class="lbl">Wins</div></div>
+      <div class="stat-cell"><div class="num">${p.losses}</div><div class="lbl">Losses</div></div>
+    </div>
+    <div class="detail-grid">
+      <div class="panel">
+        <h2 class="section-title">RECENT MATCHES</h2>
+        ${p.history.map(h=>`
+          <div class="history-row">
+            <div><span class="${h.result==='W'?'result-w':'result-l'}">${h.result}</span> &nbsp; vs <span class="opp">${h.opp}</span></div>
+            <div class="mono" style="color:var(--chalk-dim)">${h.score}</div>
+            <div class="mono" style="color:var(--chalk-faint); font-size:11px;">${h.date}</div>
+          </div>
+        `).join('') || '<div style="color:var(--chalk-faint); font-size:13px;">No matches recorded yet.</div>'}
+      </div>
+      <div class="panel">
+        <h2 class="section-title">ACHIEVEMENTS</h2>
+        <div class="badges-wrap">
+          ${p.badges.map(b=>`
+            <div class="badge-item">
+              <div class="badge-circle" style="background:radial-gradient(circle at 35% 30%, ${b.color}dd, ${b.color}88);">${b.icon}</div>
+              <div class="badge-label">${b.label}</div>
+            </div>
+          `).join('') || '<div style="color:var(--chalk-faint); font-size:13px;">No badges earned yet.</div>'}
+        </div>
+      </div>
+    </div>
+  `;
+  showView('player-detail');
+}
+
+document.getElementById('playerSearch').addEventListener('input', e=>renderPlayers(e.target.value));
+
+/* ========================= TEAMS ========================= */
+
+let activeTeam = teams[0].id;
+
+function renderTeamChips(){
+  document.getElementById('teamChips').innerHTML = teams.map(t=>`
+    <button class="team-chip ${t.id===activeTeam?'active':''}" onclick="selectTeam('${t.id}')">${t.name}</button>
+  `).join('');
+}
+
+function selectTeam(id){
+  activeTeam = id;
+  renderTeamChips();
+  renderTeamContent();
+}
+
+function renderTeamContent(){
+  const t = teams.find(x=>x.id===activeTeam);
+  const roster = t.roster.map(pid=>players.find(p=>p.id===pid));
+  const maxPts = Math.max(...t.history.map(h=>h.pts));
+
+  document.getElementById('teamContent').innerHTML = `
+    <div class="team-two-col">
+      <div class="panel">
+        <h2 class="section-title">ROSTER — ${t.name.toUpperCase()}</h2>
+        <table class="roster-table">
+          <thead><tr><th>#</th><th>Player</th><th>Rating</th><th>Record</th><th>Status</th></tr></thead>
+          <tbody>
+            ${roster.map(p=>`
+              <tr style="cursor:pointer" onclick="openPlayer(${p.id})">
+                <td class="mono">${p.number}</td>
+                <td>${p.name}${p.name===t.captain?' <span class="mono" style="color:var(--ball-yellow); font-size:10px;">C</span>':''}</td>
+                <td class="mono">R${p.rating}</td>
+                <td class="mono">${p.wins}-${p.losses}</td>
+                <td><span class="status-dot status-${p.status==='active'?'active':(p.status==='injured'?'injured':'inactive')}" style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${p.status==='active'?'#5fbf87':(p.status==='injured'?'var(--ball-red)':'#8a8a8a')};"></span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2 class="section-title">SEASON SNAPSHOT</h2>
+        <div class="stat-strip" style="grid-template-columns:repeat(2,1fr); margin-bottom:0;">
+          <div class="stat-cell"><div class="num">${t.record}</div><div class="lbl">Match Record</div></div>
+          <div class="stat-cell"><div class="num">${t.points}</div><div class="lbl">Total Points</div></div>
+        </div>
+        <div style="margin-top:20px;">
+          <div class="pc-meta" style="margin-bottom:6px;">WEEKLY PERFORMANCE</div>
+          <div class="bars">
+            ${t.history.map(h=>`
+              <div class="bar-col">
+                <div class="bar-val">${h.pts}</div>
+                <div class="bar" style="height:${(h.pts/maxPts)*100}%;"></div>
+                <div class="bar-lbl">W${h.week}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2 class="section-title">LEAGUE STANDINGS</h2>
+      <table class="standings-table">
+        <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>Points</th></tr></thead>
+        <tbody>
+          ${standings.map((s,i)=>`
+            <tr class="${s.team===t.name?'me':''}">
+              <td class="rank-num">${i+1}</td>
+              <td>${s.team}</td>
+              <td class="mono">${s.w}</td>
+              <td class="mono">${s.l}</td>
+              <td class="mono">${s.pts}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ========================= SCHEDULE ========================= */
+
+function renderScheduleFilters(){
+  const weeks = [...new Set(schedule.map(s=>s.week))];
+  document.getElementById('weekFilter').innerHTML = '<option value="">All weeks</option>' +
+    weeks.map(w=>`<option value="${w}">Week ${w}</option>`).join('');
+  const teamNames = [...new Set(schedule.flatMap(s=>[s.away,s.home]))];
+  document.getElementById('teamFilter').innerHTML = '<option value="">All teams</option>' +
+    teamNames.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+function renderSchedule(){
+  const wk = document.getElementById('weekFilter').value;
+  const tm = document.getElementById('teamFilter').value;
+  const rows = schedule.filter(s =>
+    (!wk || String(s.week)===wk) && (!tm || s.away===tm || s.home===tm)
+  );
+  document.getElementById('scheduleBody').innerHTML = rows.map(s=>`
+    <tr>
+      <td class="mono">${s.week}</td>
+      <td class="mono">${s.date}</td>
+      <td>${s.day}</td>
+      <td class="vs-cell">${s.away} <span style="color:var(--chalk-faint)">@</span> ${s.home} <span class="home-tag">HOME</span></td>
+      <td class="loc-tag">${s.loc}</td>
+      <td><span class="table-num">${s.table}</span></td>
+    </tr>
+  `).join('') || `<tr><td colspan="6" style="color:var(--chalk-faint); text-align:center; padding:24px;">No matches match those filters.</td></tr>`;
+}
+document.getElementById('weekFilter').addEventListener('change', renderSchedule);
+document.getElementById('teamFilter').addEventListener('change', renderSchedule);
+
+/* ========================= INIT ========================= */
+
+renderPlayers();
+renderTeamChips();
+renderTeamContent();
+renderScheduleFilters();
+renderSchedule();
+</script>
+</body>
+</html>
