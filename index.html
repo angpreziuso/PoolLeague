@@ -338,7 +338,7 @@ function ballBadge(num, size){
 function winRate(p){ return Math.round((p.wins/(p.wins+p.losses))*100); }
 
 function statusLabel(s){
-  return {active:"Active", inactive:"Inactive", injured:"Injured"}[s] || s;
+  return {active:"Available", inactive:"Sub", injured:"Out"}[s] || s;
 }
 
 /* ========================= VIEW SWITCH ========================= */
