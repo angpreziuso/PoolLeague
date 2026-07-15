@@ -57,7 +57,44 @@ function setupSheets() {
   ensureSheet_(ss, SHEETS.GAMES,
     ['Week', 'Date', 'HomePlayer', 'AwayPlayer', 'Winner', 'WinType']);
 
-  notify_('Sheet tabs are set up. Fill in Roster, Teams, Schedule, Matches, and Games.');
+  installFormulas_(ss);
+
+  notify_('Sheet tabs are set up. Fill in Roster (names/rating), Teams, Schedule, Matches, and Games. Wins/Losses and TotalPoints auto-fill from what you enter.');
+}
+
+// ---------------------------------------------------------------------------
+// AUTO-POPULATION — derive columns from what you type, all inside the sheet.
+//   - Roster Wins   = games in the Games tab that the player won
+//   - Roster Losses = games the player appeared in but did not win
+//   - Teams TotalPoints = team points summed from the Matches tab
+// These are live formulas: type into Games/Matches and these columns update
+// themselves. Don't hand-edit the Wins, Losses, or TotalPoints columns.
+// Run this once (it's also called by setupSheets); safe to re-run.
+// ---------------------------------------------------------------------------
+function installFormulas_(ss) {
+  ss = ss || SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  const roster = ss.getSheetByName(SHEETS.ROSTER);
+  if (roster) {
+    // Wins (col E): count of Games where this player is the Winner.
+    roster.getRange('E2').setFormula(
+      '=ARRAYFORMULA(IF(A2:A="","",COUNTIF(Games!E:E,A2:A)))');
+    // Losses (col F): games the player appeared in (home or away) minus wins.
+    roster.getRange('F2').setFormula(
+      '=ARRAYFORMULA(IF(A2:A="","",COUNTIF(Games!C:C,A2:A)+COUNTIF(Games!D:D,A2:A)-COUNTIF(Games!E:E,A2:A)))');
+  }
+
+  const teams = ss.getSheetByName(SHEETS.TEAMS);
+  if (teams) {
+    // TotalPoints (col C): team points from Matches, home + away.
+    teams.getRange('C2').setFormula(
+      '=ARRAYFORMULA(IF(A2:A="","",SUMIF(Matches!C:C,A2:A,Matches!G:G)+SUMIF(Matches!D:D,A2:A,Matches!H:H)))');
+  }
+}
+
+function installFormulas() {
+  installFormulas_();
+  notify_('Auto-fill formulas installed. Wins/Losses come from the Games tab; TotalPoints comes from the Matches tab.');
 }
 
 // Shows a pop-up when the script is bound to a sheet; falls back to the
@@ -146,6 +183,7 @@ function onOpen() {
     SpreadsheetApp.getUi()
       .createMenu('League Admin')
       .addItem('Set up sheet tabs', 'setupSheets')
+      .addItem('Install auto-fill formulas', 'installFormulas')
       .addToUi();
   } catch (err) {
     Logger.log('onOpen menu skipped (standalone script): ' + err);
