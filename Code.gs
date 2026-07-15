@@ -73,7 +73,7 @@ function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   ensureSheet_(ss, SHEETS.ROSTER,
-    ['PlayerName', 'PlayerNumber', 'Team', 'CurrentRating', 'Status', 'Wins', 'Losses']);
+    ['PlayerName', 'PlayerNumber', 'Team', 'CurrentRating', 'Wins', 'Losses']);
 
   ensureSheet_(ss, SHEETS.TEAMS,
     ['TeamName', 'Captain', 'TotalPoints']);
@@ -135,15 +135,15 @@ function syncRosterToForm() {
     return;
   }
   const form = FormApp.openById(FORM_ID);
-  const roster = getActiveRosterNames_();
+  const roster = getRosterNames_();
   const teamNames = getTeamNames_();
 
   form.getItems().forEach(item => {
     const title = item.getTitle();
     // Player-pickers: any question ending in "Player" or "Lag Winner" / "Game Winner"
-    // gets the full active roster as choices. In practice you'll want the
+    // gets the full roster as choices. In practice you'll want the
     // Home/Away player questions scoped to that match's two rosters — the
-    // simplest reliable version (used here) offers every active player;
+    // simplest reliable version (used here) offers every player;
     // scorekeepers pick from a short, correctly-spelled list either way.
     if (/Player$|Lag Winner$|Game Winner$|Scorekeeper Name$/.test(title)) {
       setChoices_(item, roster);
@@ -153,7 +153,7 @@ function syncRosterToForm() {
     }
   });
 
-  SpreadsheetApp.getUi().alert('Form dropdowns synced to current roster (' + roster.length + ' players).');
+  SpreadsheetApp.getUi().alert('Form dropdowns synced to roster (' + roster.length + ' players).');
 }
 
 function setChoices_(item, choices) {
@@ -165,9 +165,9 @@ function setChoices_(item, choices) {
   }
 }
 
-function getActiveRosterNames_() {
+function getRosterNames_() {
   const rows = readSheet_(SHEETS.ROSTER);
-  return rows.filter(r => r.Status === 'active').map(r => r.PlayerName).filter(Boolean);
+  return rows.map(r => r.PlayerName).filter(Boolean);
 }
 
 function getTeamNames_() {
