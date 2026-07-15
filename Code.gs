@@ -100,7 +100,17 @@ function setupSheets() {
     'Timestamp', 'Player', 'MatchId', 'GameNumber', 'OldRating', 'Delta', 'NewRating', 'Reason'
   ]);
 
-  SpreadsheetApp.getUi().alert('Sheet tabs are set up. Fill in Roster, Teams, and Schedule next.');
+  notify_('Sheet tabs are set up. Fill in Roster, Teams, and Schedule next.');
+}
+
+// Shows a pop-up when the script is bound to a sheet; falls back to the
+// execution log in a standalone project (where getUi() isn't available).
+function notify_(message) {
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (err) {
+    Logger.log(message);
+  }
 }
 
 function ensureSheet_(ss, name, headers) {
@@ -131,7 +141,7 @@ function FORM_QUESTION_TITLES_() {
 
 function syncRosterToForm() {
   if (FORM_ID === 'PASTE_YOUR_GOOGLE_FORM_ID_HERE') {
-    SpreadsheetApp.getUi().alert('Set FORM_ID at the top of Code.gs first.');
+    notify_('Set FORM_ID at the top of Code.gs first.');
     return;
   }
   const form = FormApp.openById(FORM_ID);
@@ -153,7 +163,7 @@ function syncRosterToForm() {
     }
   });
 
-  SpreadsheetApp.getUi().alert('Form dropdowns synced to roster (' + roster.length + ' players).');
+  notify_('Form dropdowns synced to roster (' + roster.length + ' players).');
 }
 
 function setChoices_(item, choices) {
@@ -414,10 +424,15 @@ function doGet(e) {
 // MENU — adds "League Admin" to the Sheet's menu bar for one-click actions
 // ---------------------------------------------------------------------------
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('League Admin')
-    .addItem('1. Set up sheet tabs', 'setupSheets')
-    .addItem('2. Sync roster to Form dropdowns', 'syncRosterToForm')
-    .addItem('Recalculate standings', 'recalculateStandings_')
-    .addToUi();
+  // Only works when the script is bound to the spreadsheet; ignored otherwise.
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu('League Admin')
+      .addItem('1. Set up sheet tabs', 'setupSheets')
+      .addItem('2. Sync roster to Form dropdowns', 'syncRosterToForm')
+      .addItem('Recalculate standings', 'recalculateStandings_')
+      .addToUi();
+  } catch (err) {
+    Logger.log('onOpen menu skipped (standalone script): ' + err);
+  }
 }
