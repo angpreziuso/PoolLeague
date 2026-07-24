@@ -1,5 +1,5 @@
 /**
- * RACK SHEET — League Backend (Google Apps Script)
+ * POOL LEAGUE — League Backend (Google Apps Script)
  * ============================================================================
  * WHAT THIS FILE DOES
  *  1. Sets up the sheet tabs the app reads from (run setupSheets() once).
@@ -23,6 +23,82 @@
 // CONFIG
 // ---------------------------------------------------------------------------
 const SPREADSHEET_ID = '1uckbx5NbiRDHADsfb-k2IDiiVk8CjGYIWWYiK_T7yZc';
+
+// ---------------------------------------------------------------------------
+// THE RULE BOOK
+// Official World Pool-Billiard Association rules, available to the frontend
+// at: {web-app-url}?resource=rules
+// ---------------------------------------------------------------------------
+const RULE_BOOK = {
+  title: 'The Rule Book',
+  url: 'https://wpapool.com/rules/',
+};
+
+// ---------------------------------------------------------------------------
+// NEW PLAYER SIGNUP
+// Run createPlayerSignupForm() once to create a shareable Google Form. Form
+// responses are saved to this league spreadsheet; the signup link is retained
+// in the script's document properties and can be retrieved later with
+// getPlayerSignupFormUrl().
+// ---------------------------------------------------------------------------
+const PLAYER_SIGNUP_FORM_PROPERTY = 'PLAYER_SIGNUP_FORM_URL';
+
+function createPlayerSignupForm() {
+  const properties = PropertiesService.getDocumentProperties();
+  const existingUrl = properties.getProperty(PLAYER_SIGNUP_FORM_PROPERTY);
+  if (existingUrl) {
+    notify_('New Player Signup form already exists: ' + existingUrl);
+    return existingUrl;
+  }
+
+  const form = FormApp.create('New Player Signup')
+    .setDescription('Welcome to Shark Club. Please provide contact info below to receive event updates.')
+    .setConfirmationMessage('Thanks for signing up for Shark Club. We will be in touch with league information.');
+
+  const emailValidation = FormApp.createTextValidation()
+    .requireTextIsEmail()
+    .setHelpText('Please enter a valid email address.')
+    .build();
+
+  form.addTextItem()
+    .setTitle('Email')
+    .setHelpText('Please provide your primary email address that we will use for your account, to view scores and send you additional league info.')
+    .setValidation(emailValidation)
+    .setRequired(true);
+  form.addTextItem()
+    .setTitle('Full Name (as you would like to be called)')
+    .setRequired(true);
+  form.addTextItem()
+    .setTitle('Cellphone Number')
+    .setRequired(true);
+  form.addMultipleChoiceItem()
+    .setTitle('Are you currently ranked in any league?')
+    .setChoiceValues([
+      'Have never played in any league',
+      'Yes — I will provide league name(s), ranking, and details below',
+      'Yes, but it was a long time ago and my level is not accurate — I will provide details below',
+      'Other',
+    ])
+    .setRequired(true);
+  form.addParagraphTextItem()
+    .setTitle('League name(s), ranking, or additional details')
+    .setRequired(false);
+
+  form.setDestination(FormApp.DestinationType.SPREADSHEET, SPREADSHEET_ID);
+  const publishedUrl = form.getPublishedUrl();
+  properties.setProperty(PLAYER_SIGNUP_FORM_PROPERTY, publishedUrl);
+  notify_('New Player Signup form created: ' + publishedUrl);
+  return publishedUrl;
+}
+
+function getPlayerSignupFormUrl() {
+  const url = PropertiesService.getDocumentProperties()
+    .getProperty(PLAYER_SIGNUP_FORM_PROPERTY) || '';
+  notify_(url
+    ? 'New Player Signup form: ' + url
+    : 'No signup form exists yet. Choose “Create New Player Signup form” first.');
+  return url;
+}
 
 // Sheet tab names — change here if you rename tabs
 const SHEETS = {
@@ -235,6 +311,7 @@ function readSheet_(name) {
 //   {url}?resource=standings
 //   {url}?resource=matches
 //   {url}?resource=games
+//   {url}?resource=rules
 // ---------------------------------------------------------------------------
 function doGet(e) {
   const resource = (e.parameter.resource || '').toLowerCase();
@@ -259,8 +336,11 @@ function doGet(e) {
     case 'games':
       data = readSheet_(SHEETS.GAMES);
       break;
+    case 'rules':
+      data = RULE_BOOK;
+      break;
     default:
-      return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown resource. Use players, teams, schedule, standings, matches, or games.' }))
+      return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown resource. Use players, teams, schedule, standings, matches, games, or rules.' }))
         .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -278,6 +358,9 @@ function onOpen() {
       .createMenu('League Admin')
       .addItem('Set up sheet tabs', 'setupSheets')
       .addItem('Install auto-fill formulas', 'installFormulas')
+      .addSeparator()
+      .addItem('Create New Player Signup form', 'createPlayerSignupForm')
+      .addItem('Show New Player Signup link', 'getPlayerSignupFormUrl')
       .addToUi();
   } catch (err) {
     Logger.log('onOpen menu skipped (standalone script): ' + err);
