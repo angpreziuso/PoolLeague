@@ -312,6 +312,7 @@ function readSheet_(name) {
 //   {url}?resource=matches
 //   {url}?resource=games
 //   {url}?resource=rules
+//   {url}?resource=signup
 // ---------------------------------------------------------------------------
 function doGet(e) {
   const resource = (e.parameter.resource || '').toLowerCase();
@@ -339,8 +340,15 @@ function doGet(e) {
     case 'rules':
       data = RULE_BOOK;
       break;
+    case 'signup':
+      data = {
+        title: 'New Player Signup',
+        url: PropertiesService.getDocumentProperties()
+          .getProperty(PLAYER_SIGNUP_FORM_PROPERTY) || '',
+      };
+      break;
     default:
-      return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown resource. Use players, teams, schedule, standings, matches, games, or rules.' }))
+      return ContentService.createTextOutput(JSON.stringify({ error: 'Unknown resource. Use players, teams, schedule, standings, matches, games, rules, or signup.' }))
         .setMimeType(ContentService.MimeType.JSON);
   }
 

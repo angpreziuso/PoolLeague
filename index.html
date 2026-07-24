@@ -62,14 +62,16 @@
     font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--chalk-dim);
     border:1px solid var(--line); border-radius:20px; padding:6px 14px;
   }
-  nav{display:flex; gap:4px; margin-top:22px;}
-  nav button{
+  nav{display:flex; gap:4px; margin-top:22px; flex-wrap:wrap;}
+  nav button, nav a{
     background:none; border:none; color:var(--chalk-dim); font-family:'Oswald',sans-serif;
     text-transform:uppercase; letter-spacing:0.08em; font-size:14px; padding:12px 20px;
     cursor:pointer; border-bottom:3px solid transparent; transition: color .15s, border-color .15s;
+    text-decoration:none;
   }
-  nav button:hover{color:var(--chalk);}
+  nav button:hover, nav a:hover{color:var(--chalk);}
   nav button.active{color:var(--ball-yellow); border-bottom-color:var(--ball-yellow);}
+  nav a.disabled{cursor:not-allowed; opacity:0.55;}
 
   main{max-width:1180px; margin:0 auto; padding:32px;}
   .view{display:none; animation: fade .25s ease;}
@@ -216,6 +218,8 @@
     <button class="active" data-view="players">Players</button>
     <button data-view="teams">Teams</button>
     <button data-view="schedule">Schedule</button>
+    <a href="https://wpapool.com/rules/" target="_blank" rel="noopener noreferrer">The Rule Book</a>
+    <a id="playerSignupLink" class="disabled" aria-disabled="true" title="The signup form is being prepared">New Player Signup</a>
   </nav>
 </header>
 
@@ -569,6 +573,23 @@ async function fetchResource(r){
   return Array.isArray(data) ? data : [];
 }
 
+async function loadSignupLink(){
+  const link = document.getElementById('playerSignupLink');
+  try {
+    const res = await fetch(API_BASE + '?resource=signup', {redirect:'follow'});
+    const signup = await res.json();
+    if (!signup.url) return;
+    link.href = signup.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.classList.remove('disabled');
+    link.removeAttribute('aria-disabled');
+    link.removeAttribute('title');
+  } catch (err) {
+    console.warn('New Player Signup link is unavailable.', err);
+  }
+}
+
 function parseBadges(str){
   return String(str||'').split(/\s{2,}/).map(s=>s.trim()).filter(Boolean).map(label=>{
     const meta = BADGE_META[label] || {icon:'🏆', color:'#7d5ba6'};
@@ -665,6 +686,7 @@ async function loadData(){
 
 renderAll();
 loadData();
+loadSignupLink();
 </script>
 </body>
 </html>
